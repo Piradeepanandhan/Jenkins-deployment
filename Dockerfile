@@ -1,4 +1,3 @@
-id="docker01"
 FROM node:18
 
 # Create app directory

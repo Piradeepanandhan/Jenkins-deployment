@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "node-app"
-        DOCKERHUB_USER = "YOUR_DOCKER_USERNAME"
+        DOCKERHUB_USER = "prabha0112"
         CONTAINER_NAME = "node-app-container"
         KUBE_DEPLOYMENT = "node-app"
     }

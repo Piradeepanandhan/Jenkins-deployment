@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "node-app"
+        IMAGE_NAME = "node-app-new"
         DOCKERHUB_USER = "prabha0112"   // your Docker Hub username
         KUBE_DEPLOYMENT = "node-app"
         KUBECONFIG = "/var/lib/jenkins/.kube/config"

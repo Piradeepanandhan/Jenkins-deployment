@@ -4,6 +4,7 @@ pipeline {
     environment {
         APP_NAME = "node-app"
         APP_PORT = "3000"
+        PM2_HOME = "/var/lib/jenkins/.pm2"
     }
 
     stages {
@@ -17,7 +18,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                echo "Installing Node dependencies..."
+                echo "Installing dependencies..."
                 npm install
                 '''
             }
@@ -26,23 +27,29 @@ pipeline {
         stage('Run App with PM2') {
             steps {
                 sh '''
-                echo "Checking PM2 installation..."
+                export PM2_HOME=$PM2_HOME
 
+                echo "Using PM2_HOME=$PM2_HOME"
+
+                # Install PM2 if not present
                 if ! command -v pm2 > /dev/null; then
-                    echo "PM2 not found → Installing..."
+                    echo "Installing PM2..."
                     sudo npm install -g pm2
                 fi
 
-                echo "Checking if app already exists in PM2..."
+                # Restore previous processes (if any)
+                pm2 resurrect || true
 
+                # Start or restart app
                 if pm2 describe $APP_NAME > /dev/null 2>&1; then
-                    echo "App exists → Restarting..."
+                    echo "Restarting existing app..."
                     pm2 restart $APP_NAME
                 else
-                    echo "App not found → Starting new app..."
+                    echo "Starting new app..."
                     pm2 start app.js --name $APP_NAME
                 fi
 
+                # Save process list
                 pm2 save
                 '''
             }
@@ -51,10 +58,11 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
-                echo "Waiting for app to start..."
+                echo "Waiting for app..."
                 sleep 5
 
                 curl -f http://localhost:$APP_PORT || exit 1
+
                 echo "App is running successfully!"
                 '''
             }
@@ -78,7 +86,7 @@ pipeline {
             steps {
                 sh '''
                 if [ ! -f /etc/nginx/sites-available/node-app ]; then
-                    echo "Configuring Nginx reverse proxy..."
+                    echo "Configuring Nginx..."
 
                     sudo bash -c 'cat > /etc/nginx/sites-available/node-app <<EOF
 server {
@@ -102,7 +110,7 @@ EOF'
                     sudo nginx -t
                     sudo systemctl restart nginx
 
-                    echo "Nginx configured successfully!"
+                    echo "Nginx configured!"
                 else
                     echo "Nginx already configured → Skipping"
                 fi

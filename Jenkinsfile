@@ -1,11 +1,11 @@
-id="dockerjenkins01"
 pipeline {
     agent any
 
     environment {
         IMAGE_NAME = "node-app"
+        DOCKERHUB_USER = "YOUR_DOCKER_USERNAME"
         CONTAINER_NAME = "node-app-container"
-        APP_PORT = "3000"
+        KUBE_DEPLOYMENT = "node-app"
     }
 
     stages {
@@ -19,36 +19,57 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t $IMAGE_NAME .
+                echo "Building Docker image..."
+                docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest .
                 '''
             }
         }
 
-        stage('Stop Old Container') {
+        stage('Login to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                    echo "Logging into Docker Hub..."
+                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
             steps {
                 sh '''
-                docker stop $CONTAINER_NAME || true
-                docker rm $CONTAINER_NAME || true
+                echo "Pushing image..."
+                docker push $DOCKERHUB_USER/$IMAGE_NAME:latest
                 '''
             }
         }
 
-        stage('Run Container') {
+        stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                docker run -d \
-                --name $CONTAINER_NAME \
-                -p 3000:3000 \
-                $IMAGE_NAME
+                echo "Deploying to Kubernetes..."
+
+                kubectl apply -f k8s/
+
+                # Restart deployment to pull latest image
+                kubectl rollout restart deployment/$KUBE_DEPLOYMENT
                 '''
             }
         }
 
-        stage('Health Check') {
+        stage('Verify Deployment') {
             steps {
                 sh '''
-                sleep 5
-                curl -f http://localhost:3000 || exit 1
+                echo "Checking pods..."
+                kubectl get pods
+
+                echo "Checking services..."
+                kubectl get svc
                 '''
             }
         }
@@ -56,7 +77,7 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Docker Deployment Successful!"
+            echo "🎉 Deployment to Kubernetes Successful!"
         }
         failure {
             echo "❌ Deployment Failed!"

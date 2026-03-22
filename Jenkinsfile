@@ -8,7 +8,7 @@ pipeline {
 
     stages {
 
-        stage('Clone Repo') {
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
@@ -16,24 +16,46 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh '''
+                echo "Installing Node dependencies..."
+                npm install
+                '''
             }
         }
 
         stage('Run App with PM2') {
             steps {
                 sh '''
-                pm2 describe $APP_NAME > /dev/null 2>&1
+                echo "Checking PM2 installation..."
 
-                if [ $? -ne 0 ]; then
-                    echo "Starting new PM2 app..."
-                    pm2 start app.js --name $APP_NAME
-                else
-                    echo "Restarting existing PM2 app..."
+                if ! command -v pm2 > /dev/null; then
+                    echo "PM2 not found → Installing..."
+                    sudo npm install -g pm2
+                fi
+
+                echo "Checking if app already exists in PM2..."
+
+                if pm2 describe $APP_NAME > /dev/null 2>&1; then
+                    echo "App exists → Restarting..."
                     pm2 restart $APP_NAME
+                else
+                    echo "App not found → Starting new app..."
+                    pm2 start app.js --name $APP_NAME
                 fi
 
                 pm2 save
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                echo "Waiting for app to start..."
+                sleep 5
+
+                curl -f http://localhost:$APP_PORT || exit 1
+                echo "App is running successfully!"
                 '''
             }
         }
@@ -46,7 +68,7 @@ pipeline {
                     sudo apt update -y
                     sudo apt install -y nginx
                 else
-                    echo "Nginx already installed. Skipping..."
+                    echo "Nginx already installed → Skipping"
                 fi
                 '''
             }
@@ -56,7 +78,7 @@ pipeline {
             steps {
                 sh '''
                 if [ ! -f /etc/nginx/sites-available/node-app ]; then
-                    echo "Configuring Nginx..."
+                    echo "Configuring Nginx reverse proxy..."
 
                     sudo bash -c 'cat > /etc/nginx/sites-available/node-app <<EOF
 server {
@@ -79,11 +101,22 @@ EOF'
 
                     sudo nginx -t
                     sudo systemctl restart nginx
+
+                    echo "Nginx configured successfully!"
                 else
-                    echo "Nginx already configured. Skipping..."
+                    echo "Nginx already configured → Skipping"
                 fi
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "🎉 Deployment Successful!"
+        }
+        failure {
+            echo "❌ Deployment Failed!"
         }
     }
 }

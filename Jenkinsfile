@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "node-app"
+        APP_NAME = "node-app-new"
         APP_PORT = "3000"
         PM2_HOME = "/var/lib/jenkins/.pm2"
     }

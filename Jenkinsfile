@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         IMAGE_NAME = "node-app"
-        DOCKERHUB_USER = "prabha0112"
-        CONTAINER_NAME = "node-app-container"
+        DOCKERHUB_USER = "prabha0112"   // your Docker Hub username
         KUBE_DEPLOYMENT = "node-app"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
@@ -43,7 +43,7 @@ pipeline {
         stage('Push Image to Docker Hub') {
             steps {
                 sh '''
-                echo "Pushing image..."
+                echo "Pushing Docker image..."
                 docker push $DOCKERHUB_USER/$IMAGE_NAME:latest
                 '''
             }
@@ -54,9 +54,12 @@ pipeline {
                 sh '''
                 echo "Deploying to Kubernetes..."
 
+                export KUBECONFIG=$KUBECONFIG
+
+                kubectl get nodes
+
                 kubectl apply -f k8s/
 
-                # Restart deployment to pull latest image
                 kubectl rollout restart deployment/$KUBE_DEPLOYMENT
                 '''
             }
@@ -65,10 +68,12 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                echo "Checking pods..."
+                export KUBECONFIG=$KUBECONFIG
+
+                echo "Pods status:"
                 kubectl get pods
 
-                echo "Checking services..."
+                echo "Service status:"
                 kubectl get svc
                 '''
             }
@@ -77,7 +82,7 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Deployment to Kubernetes Successful!"
+            echo "🎉 Deployment Successful!"
         }
         failure {
             echo "❌ Deployment Failed!"

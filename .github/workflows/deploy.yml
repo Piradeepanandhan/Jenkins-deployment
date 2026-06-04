@@ -8,42 +8,47 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Main
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Build Docker Image
+        run: |
+          docker build -t node-app:${{ github.sha }} .
 
-    - name: Build Docker Image
-      run: |
-        docker build -t node-app:${{ github.sha }} .
+      - name: Deploy to Linux Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ vars.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
 
-    - name: Deploy to Linux Server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
 
-        script: |
+            cd /home/ubuntu
 
-          cd /root
+            if [ ! -d Jenkins-deployment ]; then
+              git clone https://github.com/Piradeepanandhan/Jenkins-deployment.git
+            fi
 
-          if [ ! -d node-app ]; then
-            git clone git@github.com:Piradeepanandhan/<repo-name>.git node-app
-          fi
+            cd Jenkins-deployment
 
-          cd node-app
+            git pull origin main
 
-          git pull origin main
+            docker stop node-app || true
+            docker rm node-app || true
 
-          docker stop node-app || true
-          docker rm node-app || true
+            docker rmi node-app:latest || true
 
-          docker build -t node-app:latest .
+            docker build -t node-app:latest .
 
-          docker run -d \
-            --name node-app \
-            -p 3000:3000 \
-            --restart always \
-            node-app:latest
+            docker run -d \
+              --name node-app \
+              -p 3000:3000 \
+              --restart always \
+              node-app:latest
+
+            docker ps

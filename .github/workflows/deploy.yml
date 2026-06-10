@@ -63,7 +63,7 @@ jobs:
 
       - name: Create Release
         run: |
-          octo create-release \
+          octopus create-release \
             --project "NodeJS-App" \
             --version "${{ github.run_number }}" \
             --server "${{ secrets.OCTOPUS_SERVER }}" \

@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: DevSecOps Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  build:
+  build-and-deploy:
 
     runs-on: ubuntu-latest
 
@@ -15,6 +15,28 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      #################################
+      # SonarQube
+      #################################
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      #################################
+      # Docker
+      #################################
 
       - name: Docker Login
         uses: docker/login-action@v3
@@ -31,3 +53,27 @@ jobs:
         run: |
           docker push \
           ${{ secrets.DOCKER_USERNAME }}/nodejs-demo:${{ github.run_number }}
+
+      #################################
+      # Octopus
+      #################################
+
+      - name: Install Octopus CLI
+        uses: OctopusDeploy/install-octopus-cli-action@v3
+
+      - name: Create Release
+        run: |
+          octo create-release \
+            --project "NodeJS-App" \
+            --version "${{ github.run_number }}" \
+            --server "${{ secrets.OCTOPUS_SERVER }}" \
+            --apiKey "${{ secrets.OCTOPUS_API_KEY }}"
+
+      - name: Deploy Release
+        run: |
+          octo deploy-release \
+            --project "NodeJS-App" \
+            --version "${{ github.run_number }}" \
+            --deployTo "dev" \
+            --server "${{ secrets.OCTOPUS_SERVER }}" \
+            --apiKey "${{ secrets.OCTOPUS_API_KEY }}"

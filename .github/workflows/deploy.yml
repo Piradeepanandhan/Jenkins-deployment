@@ -71,7 +71,7 @@ jobs:
 
       - name: Deploy Release
         run: |
-          octo deploy-release \
+          octopus deploy-release \
             --project "NodeJS-App" \
             --version "${{ github.run_number }}" \
             --deployTo "dev" \

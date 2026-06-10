@@ -67,6 +67,7 @@ jobs:
         env:
           OCTOPUS_URL: ${{ secrets.OCTOPUS_SERVER }}
           OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+          OCTOPUS_SPACE: ${{ secrets.OCTOPUS_SPACE }}
         run: |
           octopus release create \
             --project "NodeJS-App" \
@@ -77,6 +78,7 @@ jobs:
         env:
           OCTOPUS_URL: ${{ secrets.OCTOPUS_SERVER }}
           OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+          OCTOPUS_SPACE: ${{ secrets.OCTOPUS_SPACE }}
         run: |
           octopus release deploy \
             --project "NodeJS-App" \
